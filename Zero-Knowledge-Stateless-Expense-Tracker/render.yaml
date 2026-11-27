@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: zero-knowledge-expense-tracker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: LLM_API_KEY
+        sync: false
+      - key: JWT_HMAC_SECRET
+        generateValue: true

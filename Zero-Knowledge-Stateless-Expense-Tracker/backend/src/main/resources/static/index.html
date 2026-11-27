@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zero-Knowledge Expense Tracker</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- SheetJS for local in-browser Excel (.xlsx/.xls) parsing (zero server upload) -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">ZK</div>
+      <div><b>Zero-Knowledge</b><small>Expense Tracker</small></div>
+    </div>
+    <nav>
+      <button class="nav active" data-page="dashboard">Dashboard</button>
+      <button class="nav" data-page="transactions">
+        Transactions <span id="navTxCount" class="nav-badge" hidden>0</span>
+      </button>
+      <button class="nav" data-page="privacy">Privacy Vault</button>
+      <button class="nav" data-page="insights">Insights</button>
+    </nav>
+    <div class="sidebar-actions">
+      <button id="vaultActionBtn" class="vault-btn" title="Configure AES-256-GCM Vault Passphrase">
+        <span class="green" id="vaultDot"></span>
+        <div>
+          <b id="vaultLabel">Vault Unlocked</b>
+          <small id="vaultSub">AES-256-GCM · Local RAM</small>
+        </div>
+      </button>
+    </div>
+    <div class="mini">
+      <span class="green" id="backendDot"></span>
+      <div>
+        <b id="backendLabel">Privacy-first mode</b>
+        <small id="backendSub">Checking stateless API...</small>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <header>
+      <div>
+        <p>PERSONAL FINANCE · ZERO-KNOWLEDGE</p>
+        <h1 id="title">Financial Dashboard</h1>
+      </div>
+      <div class="header-right">
+        <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle dark/light theme">
+          <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        </button>
+        <div class="device" id="deviceBadge"><span class="green"></span> Device protected</div>
+      </div>
+    </header>
+
+    <!-- Live Pipeline Status Banner (shown during / after statement processing) -->
+    <div id="pipelineBanner" class="pipeline-banner" hidden>
+      <div class="pipeline-steps">
+        <span class="p-step" data-step="1">1. Vault</span>
+        <span class="p-step" data-step="2">2. Parse</span>
+        <span class="p-step" data-step="3">3. Firewall</span>
+        <span class="p-step" data-step="4">4. Spring AI</span>
+        <span class="p-step" data-step="5">5. Encrypt</span>
+        <span class="p-step" data-step="6">6. Insights</span>
+      </div>
+      <div id="pipelineMsg" class="pipeline-msg">Ready</div>
+    </div>
+
+    <!-- ==================== DASHBOARD PAGE ==================== -->
+    <section id="dashboard" class="page active">
+      <div class="hero">
+        <div>
+          <p>ZERO-KNOWLEDGE ARCHITECTURE</p>
+          <h2>Your financial data stays <em>private.</em></h2>
+          <div class="muted">Parse SBI &amp; bank statements locally in your browser, strip all sensitive fields through a non-regex Privacy Firewall, classify only unique merchant strings via stateless Spring AI, and encrypt everything locally with AES-256-GCM.</div>
+          <div class="hero-actions">
+            <button onclick="go('privacy')">Inspect privacy vault →</button>
+            <button class="btn-secondary" id="loadSampleBtn">Load Sample SBI Statement</button>
+          </div>
+        </div>
+        <div class="shield">
+          <strong>✓</strong>
+          <b>AES-256-GCM Vault</b>
+          <span id="shieldText">Zero raw records leave your device.</span>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="card">
+          <small>Total Transactions</small>
+          <h3 id="statTxCount">0</h3>
+          <small id="statTxSub">Upload statement to begin</small>
+        </div>
+        <div class="card">
+          <small>Total Outflow</small>
+          <h3 id="statTotalSpend">₹0</h3>
+          <small id="statCategoriesSub">0 categories active</small>
+        </div>
+        <div class="card">
+          <small>Outbound Payload</small>
+          <h3 id="statMerchantsSent">Merchant only</h3>
+          <small id="statReductionSub">Privacy firewall active</small>
+        </div>
+        <div class="card">
+          <small>Local Vault</small>
+          <h3 id="statVaultStatus">Encrypted</h3>
+          <small id="statEngineSub">IndexedDB · AES-GCM</small>
+        </div>
+      </div>
+
+      <div class="two">
+        <div class="card">
+          <div class="head">
+            <div>
+              <h3>Import bank statement</h3>
+              <small>SBI Excel (.xlsx, .xls) or CSV — 100% local parsing</small>
+            </div>
+            <label>LOCAL</label>
+          </div>
+          <label class="drop" id="dropZone">
+            <input id="file" type="file" accept=".csv,.xlsx,.xls">
+            <strong>↑</strong>
+            <b>Choose a statement</b>
+            <span>or drag &amp; drop an SBI Excel / CSV file here</span>
+            <small id="status">No file selected yet</small>
+          </label>
+          <div class="uploader-footer">
+            <button type="button" class="link-btn" id="downloadSampleBtn">Download sample SBI CSV</button>
+            <button type="button" class="link-btn danger-link" id="clearVaultBtn" hidden>Wipe local vault</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="head">
+            <div>
+              <h3>Privacy firewall</h3>
+              <small>Non-regex outbound AI payload protection</small>
+            </div>
+            <label class="safe" id="firewallBadge">ACTIVE</label>
+          </div>
+          <ul class="firewall">
+            <li>Isolated merchant string <b>✓ Allowed</b></li>
+            <li>Transaction date &amp; RRN <b>× Stripped</b></li>
+            <li>Debit / Credit amount <b>× Stripped</b></li>
+            <li>Account balance &amp; branch <b>× Stripped</b></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TRANSACTIONS PAGE ==================== -->
+    <section id="transactions" class="page">
+      <div class="page-head-row">
+        <div>
+          <p class="eyebrow">LOCAL DECRYPTED VIEW</p>
+          <h2>Transactions</h2>
+        </div>
+        <div class="table-actions">
+          <button type="button" class="btn-outline" id="exportCsvBtn">Export CSV</button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <input type="search" id="txSearch" placeholder="Search merchant, narration, or date..." />
+        <select id="txCategoryFilter">
+          <option value="ALL">All Categories</option>
+        </select>
+        <select id="txTypeFilter">
+          <option value="ALL">All Types</option>
+          <option value="DEBIT">Debits (Outflow)</option>
+          <option value="CREDIT">Credits (Inflow)</option>
+        </select>
+      </div>
+
+      <div class="card table">
+        <div class="table-meta">
+          <h3 id="txTableTitle">Parsed &amp; rehydrated transactions</h3>
+          <small id="txFilterCount" class="muted">0 rows</small>
+        </div>
+        <div id="txEmptyState" class="empty-state">
+          <p>No transactions in your local vault yet.</p>
+          <button type="button" class="btn-primary-sm" onclick="go('dashboard')">Import a statement</button>
+        </div>
+        <table id="txTable" hidden>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Isolated Merchant</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Category</th>
+              <th>Storage</th>
+            </tr>
+          </thead>
+          <tbody id="txTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== PRIVACY VAULT PAGE ==================== -->
+    <section id="privacy" class="page">
+      <p>SECURITY ARCHITECTURE</p>
+      <h2>Privacy Vault &amp; Firewall Inspector</h2>
+      <p class="muted">Live verification of what stays encrypted on your device versus the minimal anonymized merchant array sent to the stateless Spring Boot API.</p>
+
+      <div class="flow">
+        <article><span>01</span><h3>Local file</h3><p>SBI Excel/CSV is parsed in browser memory — never uploaded.</p></article><i>→</i>
+        <article><span>02</span><h3>Non-regex firewall</h3><p>Strips dates, RRNs, amounts, balances, and branch tags.</p></article><i>→</i>
+        <article><span>03</span><h3>Stateless Spring AI</h3><p>Scoped device JWT sends only unique merchant strings.</p></article><i>→</i>
+        <article><span>04</span><h3>AES-256-GCM vault</h3><p>Rehydrated locally and stored encrypted in IndexedDB.</p></article>
+      </div>
+
+      <div class="two">
+        <div class="card">
+          <div class="head">
+            <div>
+              <h3>Exact Outbound API Payload</h3>
+              <small>POST /api/v1/categorize (JSON sent over wire)</small>
+            </div>
+            <label class="safe" id="payloadCountBadge">0 merchants</label>
+          </div>
+          <pre id="outboundPayloadPre" class="code-box">{
+  "merchants": []
+}</pre>
+        </div>
+
+        <div class="card">
+          <div class="head">
+            <div>
+              <h3>Encrypted IndexedDB Record</h3>
+              <small>AES-256-GCM ciphertext stored in browser</small>
+            </div>
+            <label id="cipherStatusBadge">EMPTY</label>
+          </div>
+          <pre id="ciphertextPre" class="code-box">Upload or load a statement to inspect live AES-256-GCM ciphertext and 96-bit IV.</pre>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="head">
+          <div>
+            <h3>Firewall Redaction Proof (Before vs. After)</h3>
+            <small>Sample rows showing sensitive fields stripped locally before any network call</small>
+          </div>
+          <label class="safe">ZERO PII LEAKED</label>
+        </div>
+        <div id="diffEmptyState" class="empty-state-sm">No statement parsed yet. Load a sample statement or upload a file from Dashboard to inspect live redaction.</div>
+        <div class="table-scroll" id="diffTableWrap" hidden>
+          <table>
+            <thead>
+              <tr>
+                <th>Raw Bank Narration (Stays Local)</th>
+                <th>Stripped Fields</th>
+                <th>Sent to AI</th>
+                <th>AI Category</th>
+              </tr>
+            </thead>
+            <tbody id="diffTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card note">
+        <strong>✓</strong>
+        <div>
+          <h3>Zero-knowledge guarantee &amp; backend endpoint</h3>
+          <p id="apiInfoText">Stateless API target: same-origin (<code>/api/v1</code>). Scoped device JWT is derived from a SHA-256 hashed random device secret with Bucket4j rate limiting (10 batch calls/hr) and zero server-side transaction storage.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== INSIGHTS PAGE ==================== -->
+    <section id="insights" class="page">
+      <p>LOCAL ANALYTICS</p>
+      <h2>Financial Insights</h2>
+      <p class="muted">Computed entirely on-device from your decrypted local vault — zero analytics leave your browser.</p>
+
+      <div class="stats">
+        <div class="card">
+          <small>Total Outflow (Debits)</small>
+          <h3 id="insOutflow">₹0</h3>
+          <small id="insDebitCount">0 debit transactions</small>
+        </div>
+        <div class="card">
+          <small>Total Inflow (Credits)</small>
+          <h3 id="insInflow">₹0</h3>
+          <small id="insCreditCount">0 credit transactions</small>
+        </div>
+        <div class="card">
+          <small>Net Cash Flow</small>
+          <h3 id="insNetFlow">₹0</h3>
+          <small id="insAvgSpend">Avg debit: ₹0</small>
+        </div>
+        <div class="card">
+          <small>Local Merchant Cache</small>
+          <h3 id="insCacheCount">0</h3>
+          <small id="insCacheSub">Cached locally in IndexedDB</small>
+        </div>
+      </div>
+
+      <div class="two">
+        <div class="card">
+          <h3>Spending by Category</h3>
+          <div id="categoryBarsContainer">
+            <p class="empty-state-sm">Upload or load a statement to view category breakdown.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Essential vs. Discretionary &amp; Recurring</h3>
+          <div id="splitSummary" class="split-box" hidden>
+            <div class="bar">
+              <span>Essentials <b id="essentialPct">0%</b></span>
+              <i id="essentialBar" style="width: 0%"></i>
+            </div>
+            <div class="bar">
+              <span>Discretionary &amp; Transfers <b id="discretionaryPct">0%</b></span>
+              <i id="discretionaryBar" style="width: 0%"></i>
+            </div>
+          </div>
+          <h4 class="sub-heading">Frequent / Recurring Merchants</h4>
+          <ul id="recurringList" class="recurring-list">
+            <li>No recurring merchants detected yet.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== VAULT PASSPHRASE MODAL ==================== -->
+  <div id="vaultModal" class="modal-backdrop" hidden>
+    <div class="modal-card">
+      <div class="head">
+        <div>
+          <h3>AES-256-GCM Local Vault</h3>
+          <small>Derive your non-extractable encryption key via PBKDF2 (100,000 iterations)</small>
+        </div>
+        <button type="button" class="close-btn" id="closeVaultModal" aria-label="Close">×</button>
+      </div>
+      <form id="vaultForm" class="modal-form">
+        <label for="vaultPassphrase">Vault Passphrase</label>
+        <input type="password" id="vaultPassphrase" placeholder="Enter passphrase to encrypt/decrypt local vault" autocomplete="off" required />
+        <small class="muted">Your passphrase never leaves this browser. If you reload the page, use the same passphrase to decrypt your saved IndexedDB vault.</small>
+        <div class="modal-actions">
+          <button type="submit" class="btn-primary-sm">Derive Key &amp; Unlock</button>
+          <button type="button" class="btn-outline" id="lockVaultBtn">Lock Vault (Clear RAM)</button>
+        </div>
+      </form>
+      <div class="api-config-box">
+        <label for="apiBaseInput">Stateless Backend URL (optional)</label>
+        <div class="inline-input">
+          <input type="text" id="apiBaseInput" placeholder="Leave blank for same-origin (/api/v1)" />
+          <button type="button" class="btn-outline" id="saveApiBaseBtn">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="script.js"></script>
+</body>
+</html>

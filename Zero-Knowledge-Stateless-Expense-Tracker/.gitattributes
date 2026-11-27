@@ -1,0 +1,10 @@
+# Auto-detect text files and normalize line endings to LF
+* text=auto eol=lf
+
+# Force Windows batch files to always use CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Force Linux shell scripts (like Maven wrapper) to always use LF
+mvnw text eol=lf
+*.sh text eol=lf

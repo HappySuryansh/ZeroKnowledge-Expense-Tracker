@@ -1,0 +1,32 @@
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+  tomcat:
+    accesslog:
+      enabled: false # Zero-knowledge: disable HTTP access logs
+
+spring:
+  main:
+    banner-mode: off
+  ai:
+    openai:
+      api-key: ${LLM_API_KEY}
+      base-url: https://generativelanguage.googleapis.com/v1beta/openai
+      chat:
+        completions-path: /chat/completions
+        options:
+          model: gemini-flash-lite-latest
+          temperature: 0.0
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.springframework.ai: INFO
+    com.zktracker.backend: DEBUG
+
+app:
+  jwt:
+    secret: ${JWT_HMAC_SECRET:}

@@ -1,0 +1,36 @@
+# === Secrets & Environment Variables ===
+.env
+.env.local
+.env.*.local
+application-local.yml
+application-secret.yml
+
+# === Real Financial Statements (Never Commit) ===
+*AccountStatement*
+*.csv
+*.xlsx
+*.xls
+!sample-data/dummy_*.xlsx
+!sample-data/dummy_*.csv
+
+# === Frontend (Node / Vite / TypeScript) ===
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
+frontend/*.local
+
+# === Backend (Java / Maven / Spring Boot) ===
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+*.log
+*.class
+*.jar
+*.war
+
+# === Editors & OS ===
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db

@@ -1,0 +1,3 @@
+# Copy to .env and populate before running backend
+export LLM_API_KEY = "your_gemini_or_openai_api_key_here"
+export JWT_HMAC_SECRET = "replace_with_a_64_char_random_hex_string_for_jwt_signing"
